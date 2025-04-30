@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Digital Clock with Swipe</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        background-color: black;
+        color: white;
+        margin: 0;
+        transition: background 0.5s ease;
+    }
+    .container {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+    }
+    #clock {
+        font-size: 5em;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+    }
+    #ampm {
+        font-size: 0.2em;
+        margin-left: 10px;
+        vertical-align: top;
+        opacity: 0.7;
+    }
+    #date {
+        font-size: 2em;
+        margin-bottom: 5px;
+    }
+    #day {
+        font-size: 1.5em;
+        opacity: 0.8;
+    }
+    .hidden {
+        display: none;
+    }
+    #stopwatch, #timer {
+        font-size: 4em;
+    }
+    button {
+        padding: 6px 14px;
+        font-size: 0.8em;
+        margin: 8px;
+        cursor: pointer;
+    }
+    #startStopBtn {
+        background-color: green;
+        color: black;
+    }
+    #stopStopBtn {
+        background-color: red;
+        color: white;
+    }
+    #resetStopBtn {
+        background-color: white;
+        color: black;
+    }
+    #name {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        font-size: 0.6em;
+        opacity: 0.6;
+        transition: color 1s ease;
+    }
+    #swipe-message {
+        position: absolute;
+        top: 50px;
+        font-size: 1.0em;
+        opacity: 0.8;
+        animation: fadeOut 12s forwards;
+    }
+    @keyframes fadeOut {
+        0% { opacity: 0.8; }
+        100% { opacity: 0; display: none; }
+    }
+    #countdown-container {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        text-align: left;
+    }
+    #countdown-label {
+        font-size: 1em;
+        font-weight: bold;
+        color: #ffffff;
+        margin-bottom: 2px;
+    }
+    #countdown {
+        font-size: 1.5em;
+        margin-top: 0.01px;
+        color: #ffffff;
+    }
+    .add-task-section {
+        text-align: center;
+        padding: 1rem;
+    }
+    .task-list {
+        max-height: 60vh;
+        overflow-y: auto;
+        padding: 1rem;
+    }
+    .task {
+        background: #1e1e1e;
+        margin-bottom: 1rem;
+        padding: 1rem;
+        border-radius: 12px;
+        border: 1px solid #333;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        transition: 0.3s;
+    }
+    .task:hover {
+        transform: translateY(-3px);
+        border-color: #ff9800;
+    }
+    .task.dragging {
+        opacity: 0.5;
+    }
+    .task-buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 0.5rem;
+    }
+    button {
+        background: #333;
+        color: #fff;
+        border: none;
+        padding: 0.4rem 0.8rem;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    input[type="text"], input[type="number"] {
+        padding: 0.4rem;
+        margin: 0.3rem;
+        border-radius: 5px;
+        border: 1px solid #555;
+        background: #222;
+        color: #fff;
+    }
+    #task-section-wrapper {
+        position: fixed;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #111;
+        transition: top 0.5s ease;
+        z-index: 999;
+        overflow-y: auto;
+        border-top: 2px solid #333;
+    }
+    #task-section-wrapper.active {
+        top: 0;
+    }
+    #goToTaskBtn {
+        position: fixed;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 50;
+        background: #444;
+        color: white;
+        padding: 10px;
+        border-radius: 8px;
+        display: none;
+    }
+    #task-error-popup {
+        position: fixed;
+        top: -100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #ff3d3d;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-size: 1em;
+        font-weight: bold;
+        z-index: 9999;
+        box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        transition: top 0.6s ease-out;
+    }
+    #task-error-popup.show {
+        top: 20px;
+    }
+</style>
+</head>
+<body>
+
+<div id="task-error-popup">Invalid task or limit exceeded!</div>
+
+<div id="swipe-message">˓ ➩Swipe Left,Right to get the Stopwatch &amp; Timer.</div>
+<div class="container" id="clock-screen">
+    <div id="clock"></div>
+    <div id="countdown-container">
+        <div id="countdown-label">HSC 25 Exam</div>
+        <div id="countdown"></div>
+    </div>
+    <div id="date"></div>
+    <div id="day"></div>
+    <div id="name">Made by Asir Abed Khan Omi</div>
+</div>
+
+<div class="container hidden" id="stopwatch-screen">
+    <caption><h1>Stopwatch</h1></caption>
+    <div id="stopwatch">00:00:00:00</div>
+    <p>
+        <button id="startStopBtn" onclick="startStopwatch()">Start</button>
+        <button id="resetStopBtn" onclick="resetStopwatch()">Reset</button>
+    </p>
+    <div id="name">Made by Asir Abed Khan Omi</div>
+</div>
+
+<div class="container hidden" id="timer-screen" style="overflow-y: auto; height: 100vh; padding-bottom: 120px;">
+    <caption><h1>Timer</h1></caption>
+    <p>
+        <input id="music-file" style="display: none;" type="file"/>
+        <button onclick="customFileSelect()" style="position: absolute; top: 10px; right: 10px; font-size: 1.5em; background: none; border: none; color: white; cursor: pointer;">🎵</button>
+        <input id="timer-hours" max="99" min="0" placeholder="Enter Hours" type="number"/>
+        <input id="timer-minutes" max="59" min="0" placeholder="Enter Minutes" type="number"/>
+        <input id="timer-seconds" max="59" min="0" placeholder="Enter Seconds" type="number"/>
+    </p>
+    <div id="timer">00:00:00</div>
+    <p>
+        <button id="startTimerBtn" onclick="startTimer()">Start</button>
+        <button id="stopTimerBtn" onclick="stopTimer()">Stop</button>
+        <button id="resetTimerBtn" onclick="resetTimer()">Reset</button>
+    </p>
+    <div id="name">Made by Asir Abed Khan Omi</div>
+</div>
+
+<div id="task-section-wrapper">
+    <div style="display: flex; justify-content: space-between; align-items: center; background: #222; padding: 10px; color: white; position: sticky; top: 0; z-index: 1000;">
+        <div id="mini-clock" style="font-size: 1.2em;"></div>
+        <button onclick="closeTaskManager()" style="background: red; color: white; padding: 6px 12px; border: none; border-radius: 6px;">Back</button>
+    </div>
+
+    <div class="add-task-section">
+        <input id="taskName" placeholder="Task Name" type="text"/>
+        <input id="taskHours" min="0" placeholder="Hours" type="number"/>
+        <input id="taskMinutes" min="0" placeholder="Minutes" type="number"/>
+        <button onclick="addTask()">Add Task</button>
+    </div>
+    <div class="task-list" id="taskList"></div>
+</div>
+
+<button id="goToTaskBtn">Go to Task Manager</button>
+
+<script>
+// Global variables
+let currentScreen = "clock";
+let stopwatchInterval, stopwatchTime = 0, stopwatchStartTime = 0;
+let timerInterval, timerTime = 0, timerEndTime = 0;
+let audio = new Audio();
+let taskLimit = 24 * 60, totalTaskTime = 0, taskId = 0, timers = {};
+let activeAlarms = {};
+let wakeLock = null;
+let isInitialLoad = true;
+
+// Initialize on page load
+document.addEventListener("DOMContentLoaded", function() {
+    // Initialize clocks
+    updateClock();
+    setInterval(updateClock, 1000);
+    updateMiniClock();
+    setInterval(updateMiniClock, 1000);
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+    
+    // Load saved data
+    loadSavedData();
+    
+    // Set up event listeners
+    setupEventListeners();
+    
+    // Initialize wake lock
+    requestWakeLock();
+    
+    // Fullscreen mode activation
+    document.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.log(`Error attempting to enable full-screen mode: ${err.message}`);
+            });
+        }
+    });
+    
+    // Handle orientation changes
+    window.addEventListener("orientationchange", function() {
+        setTimeout(saveAllData, 100);
+    });
+    
+    isInitialLoad = false;
+});
+
+// Wake Lock function
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            wakeLock.addEventListener('release', () => {
+                console.log('Wake lock was released.');
+            });
+        }
+    } catch (err) {
+        console.error('Failed to acquire wake lock:', err);
+    }
+}
+
+// Notification function (Updated for Niotron)
+function showNotification(title, body) {
+    // For Niotron
+    if (typeof window.AppInventor !== "undefined") {
+        window.AppInventor.setWebViewString(`notify:${title}:${body}`);
+        return;
+    }
+    
+    // For browser
+    if ('Notification' in window) {
+        if (Notification.permission === 'granted') {
+            new Notification(title, { body: body });
+        } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    new Notification(title, { body: body });
+                }
+            });
+        }
+    }
+}
+
+// Clock functions
+function updateClock() {
+    let now = new Date();
+    let hours = now.getHours();
+    let minutes = now.getMinutes();
+    let seconds = now.getSeconds();
+    let ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    document.getElementById('clock').innerHTML = 
+        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}<span id="ampm">${ampm}</span>`;
+
+    let dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    let monthNames = ["January", "February", "March", "April", "May", "June", 
+                      "July", "August", "September", "October", "November", "December"];
+
+    document.getElementById('date').innerText = `${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+    document.getElementById('day').innerText = dayNames[now.getDay()];
+}
+
+function updateMiniClock() {
+    let now = new Date();
+    let h = now.getHours();
+    let m = now.getMinutes();
+    let s = now.getSeconds();
+    let ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    document.getElementById("mini-clock").innerText =
+        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} ${ampm}`;
+}
+
+function updateCountdown() {
+    const targetDate = new Date("June 26, 2025 00:00:00").getTime();
+    const now = new Date().getTime();
+    const diff = targetDate - now;
+
+    if (diff > 0) {
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        document.getElementById("countdown").innerText =
+            `${String(days).padStart(2, '0')}d : ${String(hours).padStart(2, '0')}h : ${String(minutes).padStart(2, '0')}m : ${String(seconds).padStart(2, '0')}s`;
+    } else {
+        document.getElementById("countdown").innerText = "Countdown Complete!";
+    }
+}
+
+// Screen navigation
+function showScreen(screen) {
+    document.getElementById('clock-screen').classList.add('hidden');
+    document.getElementById('stopwatch-screen').classList.add('hidden');
+    document.getElementById('timer-screen').classList.add('hidden');
+    document.getElementById(`${screen}-screen`).classList.remove('hidden');
+    currentScreen = screen;
+    updateTaskManagerButtonVisibility();
+    enableDragAndDrop();
+}
+
+function updateTaskManagerButtonVisibility() {
+    const taskBtn = document.getElementById('goToTaskBtn');
+    taskBtn.style.display = (currentScreen === "timer") ? "block" : "none";
+}
+
+function setupEventListeners() {
+    // Swipe navigation
+    let startX = 0;
+    document.addEventListener("touchstart", (e) => startX = e.touches[0].clientX);
+    document.addEventListener("touchend", (e) => {
+        let endX = e.changedTouches[0].clientX;
+        if (Math.abs(endX - startX) > 50) {
+            if (currentScreen === "clock") {
+                if (endX - startX > 50) showScreen("stopwatch");  
+                else if (startX - endX > 50) showScreen("timer");  
+            } else {
+                showScreen("clock"); 
+            }
+        }
+    });
+    
+    // Task manager button
+    document.getElementById("goToTaskBtn").addEventListener("click", function() {
+        document.getElementById("task-section-wrapper").classList.add("active");
+    });
+    
+    // Music file selection
+    document.getElementById('music-file').addEventListener('change', function() {
+        if (this.files.length > 0) {
+            audio.src = URL.createObjectURL(this.files[0]);
+            try {
+                localStorage.setItem('musicFile', audio.src);
+            } catch (e) {
+                console.warn("localStorage set error:", e);
+            }
+        }
+    });
+    
+    // Save state before unload and on orientation change
+    window.addEventListener('beforeunload', saveAllData);
+    window.addEventListener('pagehide', saveAllData);
+    window.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden') {
+            saveAllData();
+        }
+    });
+    
+    // Name color animation
+    setInterval(() => {
+        const colors = ["red", "blue", "green", "orange", "purple", "yellow"];
+        document.getElementById('name').style.color = colors[Math.floor(Math.random() * colors.length)];
+    }, 60000);
+}
+
+// Stopwatch functions
+function updateStopwatchDisplay() {
+    let h = Math.floor(stopwatchTime / 360000);
+    let m = Math.floor((stopwatchTime % 360000) / 6000);
+    let s = Math.floor((stopwatchTime % 6000) / 100);
+    let ms = stopwatchTime % 100;
+    document.getElementById('stopwatch').innerText = 
+        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:${String(ms).padStart(2, '0')}`;
+}
+
+function startStopwatch() {
+    if (!stopwatchInterval) {
+        showNotification("Stopwatch Running", "Your stopwatch is now running!");
+        stopwatchStartTime = Date.now() - stopwatchTime * 10;
+        stopwatchInterval = setInterval(() => {
+            stopwatchTime = Math.floor((Date.now() - stopwatchStartTime) / 10);
+            updateStopwatchDisplay();
+        }, 10);
+        document.getElementById('startStopBtn').innerText = "Stop";
+        document.getElementById('startStopBtn').style.backgroundColor = "red";
+        document.getElementById('startStopBtn').onclick = stopStopwatch;
+        saveStopwatchState(true);
+    }
+}
+
+function stopStopwatch() { 
+    clearInterval(stopwatchInterval); 
+    stopwatchInterval = null; 
+    document.getElementById('startStopBtn').innerText = "Start";
+    document.getElementById('startStopBtn').style.backgroundColor = "green";
+    document.getElementById('startStopBtn').onclick = startStopwatch;
+    saveStopwatchState(false);
+}
+
+function resetStopwatch() { 
+    stopwatchTime = 0; 
+    document.getElementById('stopwatch').innerText = "00:00:00:00"; 
+    stopStopwatch(); 
+    localStorage.removeItem('stopwatchTime');
+    localStorage.setItem('stopwatchRunning', 'false');
+}
+
+// Timer functions
+function updateTimerDisplay() {
+    let h = Math.floor(timerTime / 3600);
+    let m = Math.floor((timerTime % 3600) / 60);
+    let s = timerTime % 60;
+    document.getElementById('timer').innerText = 
+        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function startTimer() {
+    let h = parseInt(document.getElementById('timer-hours').value) || 0;
+    let m = parseInt(document.getElementById('timer-minutes').value) || 0;
+    let s = parseInt(document.getElementById('timer-seconds').value) || 0;
+    timerTime = h * 3600 + m * 60 + s;
+
+    if (timerTime > 0) {
+        clearInterval(timerInterval);
+        updateTimerDisplay();
+
+        timerInterval = setInterval(() => {
+            timerTime--;
+
+            if (timerTime <= 0) {
+                clearInterval(timerInterval);
+                document.getElementById('timer').innerText = "Times Up!";
+                document.body.style.backgroundColor = "red";
+                vibrate([500, 500, 500]);
+                playAlarmSound();
+                saveTimerState(false);
+            } else {
+                updateTimerDisplay();
+            }
+        }, 1000);
+
+        saveTimerState(true);
+    }
+}
+
+function playAlarmSound() {
+    if (audio.src) {
+        const alarmId = 'alarm_' + Date.now();
+        const alarmAudio = new Audio(audio.src);
+        activeAlarms[alarmId] = alarmAudio;
+        
+        alarmAudio.play().catch(e => {
+            console.log("Autoplay failed:", e);
+            document.body.onclick = function() {
+                alarmAudio.play();
+                document.body.onclick = null;
+            };
+        });
+        
+        // Stop alarm after 30 seconds
+        setTimeout(() => {
+            alarmAudio.pause();
+            alarmAudio.currentTime = 0;
+            delete activeAlarms[alarmId];
+        }, 30000);
+    }
+}
+
+function stopTimer() { 
+    clearInterval(timerInterval); 
+    saveTimerState(false);
+}
+
+function resetTimer() { 
+    stopTimer(); 
+    timerTime = 0;
+    document.getElementById('timer').innerText = "00:00:00"; 
+    document.body.style.backgroundColor = "black"; 
+    localStorage.removeItem('timerTime');
+    localStorage.setItem('timerRunning', 'false');
+}
+
+// Task manager functions
+function addTask() {
+    const name = document.getElementById('taskName').value;
+    const hours = parseInt(document.getElementById('taskHours').value) || 0;
+    const mins = parseInt(document.getElementById('taskMinutes').value) || 0;
+    const totalMins = hours * 60 + mins;
+    
+    if (!name || totalMins === 0 || totalTaskTime + totalMins > taskLimit) {
+        showTaskErrorPopup("Invalid task or limit exceeded!"); 
+        return;
+    }
+    
+    const taskDiv = document.createElement('div');
+    taskDiv.setAttribute('draggable', 'true');
+    taskDiv.className = 'task';
+    taskDiv.id = 'task_' + taskId;
+    taskDiv.innerHTML = `
+        <strong>${name}</strong><br>
+        Time: ${hours} hr ${mins} min (<span id="endtime_${taskId}">Not started</span>)<br>
+        <span id="timer_${taskId}">${formatTime(totalMins * 60)}</span> left
+        <div class="task-buttons">
+          <button onclick="startTask(${taskId}, ${totalMins * 60})">Start</button>
+          <button id="toggle_${taskId}" onclick="toggleTask(${taskId})">Pause</button>
+          <button onclick="deleteTask(${taskId})">Delete</button>
+          <button onclick="stopAlarm(${taskId})">Stop Alarm</button>
+        </div>
+    `;
+    document.getElementById('taskList').appendChild(taskDiv);
+    taskId++;
+    saveTasks();
+}
+
+function startTask(id, timeLeft) {
+    const span = document.getElementById(`timer_${id}`);
+    const endTime = Date.now() + timeLeft * 1000;
+    
+    // Update end time display
+    const endDate = new Date(endTime);
+    document.getElementById(`endtime_${id}`).innerText = 
+        endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    
+    // Clear existing timer if any
+    if (timers[id]) clearInterval(timers[id]);
+    
+    timers[id] = setInterval(() => {
+        const now = Date.now();
+        const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+        
+        if (remaining <= 0) {
+            clearInterval(timers[id]);
+            delete timers[id];
+            span.innerHTML = 'Time up!';
+            playAlarmSound();
+            saveTasks();
+            
+            // Auto-start next task if available
+            setTimeout(() => {
+                deleteTask(id);
+                let taskDivs = document.querySelectorAll('.task');
+                if (taskDivs.length > 0) {
+                    let nextTask = taskDivs[0];
+                    let nextId = parseInt(nextTask.id.replace('task_', ''));
+                    let nextTimeText = document.getElementById(`timer_${nextId}`).textContent;
+                    let timeParts = nextTimeText.split(':').map(Number);
+                    let totalSeconds = timeParts[0]*3600 + timeParts[1]*60 + timeParts[2];
+                    startTask(nextId, totalSeconds);
+                    showNotification("Next Task Started", `Task ${nextId} is running now!`);
+                }
+            }, 30000);
+        } else {
+            span.innerHTML = formatTime(remaining);
+        }
+    }, 1000);
+    
+    saveTasks();
+}
+
+function pauseTask(id) { 
+    clearInterval(timers[id]); 
+    delete timers[id];
+    saveTasks();
+}
+
+function resumeTask(id) {
+    const span = document.getElementById(`timer_${id}`);
+    const timeText = span.textContent;
+    const timeParts = timeText.split(':').map(Number);
+    const seconds = timeParts[0] * 3600 + timeParts[1] * 60 + timeParts[2];
+    startTask(id, seconds);
+}
+
+function deleteTask(id) {
+    const taskElement = document.getElementById('task_' + id);
+    if (taskElement) taskElement.remove();
+    clearInterval(timers[id]);
+    delete timers[id];
+    saveTasks();
+}
+
+function stopAlarm() {
+    for (let alarmId in activeAlarms) {
+        activeAlarms[alarmId].pause();
+        activeAlarms[alarmId].currentTime = 0;
+    }
+    activeAlarms = {};
+}
+
+function toggleTask(id) {
+    const btn = document.getElementById('toggle_' + id);
+    if (btn.innerText === 'Pause') {
+        pauseTask(id);
+        btn.innerText = 'Resume';
+    } else {
+        resumeTask(id);
+        btn.innerText = 'Pause';
+    }
+}
+
+function formatTime(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function closeTaskManager() {
+    document.getElementById("task-section-wrapper").classList.remove("active");
+}
+
+// Data persistence functions
+function saveAllData() {
+    if (isInitialLoad) return;
+    
+    saveStopwatchState(!!stopwatchInterval);
+    saveTimerState(!!timerInterval);
+    saveTasks();
+}
+
+function saveStopwatchState(isRunning) {
+    try {
+        localStorage.setItem('stopwatchTime', stopwatchTime);
+        localStorage.setItem('stopwatchRunning', isRunning ? 'true' : 'false');
+        localStorage.setItem('stopwatchStartTime', isRunning ? Date.now() - stopwatchTime * 10 : stopwatchStartTime);
+    } catch (e) {
+        console.warn("Error saving stopwatch:", e);
+    }
+}
+
+function saveTimerState(isRunning) {
+    try {
+        localStorage.setItem('timerTime', timerTime);
+        localStorage.setItem('timerRunning', isRunning ? 'true' : 'false');
+        if (isRunning) {
+            localStorage.setItem('timerEndTime', timerEndTime);
+        } else {
+            localStorage.removeItem('timerEndTime');
+        }
+    } catch (e) {
+        console.warn("Error saving timer:", e);
+    }
+}
+
+function loadSavedData() {
+    try {
+        // Stopwatch
+        const savedStopwatchTime = localStorage.getItem('stopwatchTime');
+        const savedStopwatchRunning = localStorage.getItem('stopwatchRunning');
+        const savedStartTime = localStorage.getItem('stopwatchStartTime');
+        
+        if (savedStopwatchTime) stopwatchTime = parseInt(savedStopwatchTime);
+        if (savedStartTime) stopwatchStartTime = parseInt(savedStartTime);
+        
+        updateStopwatchDisplay();
+        
+        if (savedStopwatchRunning === 'true') {
+            const elapsedSinceSave = Math.floor((Date.now() - stopwatchStartTime) / 10);
+            stopwatchTime = elapsedSinceSave;
+            startStopwatch();
+        }
+        
+        // Timer
+        const savedTimerTime = localStorage.getItem('timerTime');
+        const savedTimerRunning = localStorage.getItem('timerRunning');
+        const savedEndTime = localStorage.getItem('timerEndTime');
+        
+        if (savedTimerTime) timerTime = parseInt(savedTimerTime);
+        if (savedEndTime) timerEndTime = parseInt(savedEndTime);
+        
+        updateTimerDisplay();
+        
+        if (savedTimerRunning === 'true' && timerEndTime) {
+            const now = Date.now();
+            if (timerEndTime > now) {
+                timerTime = Math.floor((timerEndTime - now) / 1000);
+                startTimer();
+            } else {
+                timerTime = 0;
+                document.getElementById('timer').innerText = "Times Up!";
+                document.body.style.backgroundColor = "red";
+            }
+        }
+        
+        // Music
+        const savedMusicFile = localStorage.getItem('musicFile');
+        if (savedMusicFile) audio.src = savedMusicFile;
+        
+        // Tasks
+        restoreTasks();
+    } catch (e) {
+        console.warn("Error loading data:", e);
+    }
+}
+
+function saveTasks() {
+    try {
+        const tasks = [];
+        document.querySelectorAll('.task').forEach(div => {
+            const id = parseInt(div.id.replace('task_', ''));
+            const name = div.querySelector('strong').innerText;
+            const timeText = div.querySelector(`#timer_${id}`).textContent;
+            const endTimeText = document.getElementById(`endtime_${id}`).innerText;
+            
+            let endTime = 0;
+            let remainingSeconds = 0;
+            
+            if (timers[id]) {
+                const timeParts = timeText.split(':').map(Number);
+                remainingSeconds = timeParts[0] * 3600 + timeParts[1] * 60 + timeParts[2];
+                endTime = Date.now() + remainingSeconds * 1000;
+            } else if (endTimeText !== "Not started") {
+                // Parse the end time from display
+                const [time, period] = endTimeText.split(' ');
+                let [hours, minutes] = time.split(':').map(Number);
+                
+                if (period === 'PM' && hours < 12) hours += 12;
+                if (period === 'AM' && hours === 12) hours = 0;
+                
+                const now = new Date();
+                const endDate = new Date(
+                    now.getFullYear(),
+                    now.getMonth(),
+                    now.getDate(),
+                    hours,
+                    minutes
+                );
+                
+                // If end time is passed, set to tomorrow
+                if (endDate < now) endDate.setDate(endDate.getDate() + 1);
+                
+                endTime = endDate.getTime();
+                remainingSeconds = Math.floor((endTime - now) / 1000);
+            }
+            
+            tasks.push({
+                id,
+                name,
+                remaining: timeText,
+                secondsLeft: remainingSeconds,
+                endTime,
+                running: !!timers[id]
+            });
+        });
+        
+        localStorage.setItem('savedTasks', JSON.stringify(tasks));
+        localStorage.setItem('taskId', taskId);
+    } catch (e) {
+        console.warn("Error saving tasks:", e);
+    }
+}
+
+function restoreTasks() {
+    try {
+        const savedTasks = JSON.parse(localStorage.getItem('savedTasks') || '[]');
+        taskId = parseInt(localStorage.getItem('taskId')) || 0;
+        
+        savedTasks.forEach(task => {
+            const taskDiv = document.createElement('div');
+            taskDiv.className = 'task';
+            taskDiv.id = 'task_' + task.id;
+            
+            const endTimeText = task.endTime ? 
+                new Date(task.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : 
+                "Not started";
+            
+            taskDiv.innerHTML = `
+                <strong>${task.name}</strong><br>
+                Time: ${formatTime(task.secondsLeft).replace(':', ' hr ').replace(':', ' min ')} (<span id="endtime_${task.id}">${endTimeText}</span>)<br>
+                <span id="timer_${task.id}">${task.remaining}</span> left
+                <div class="task-buttons">
+                  <button onclick="startTask(${task.id}, ${task.secondsLeft})">Start</button>
+                  <button id="toggle_${task.id}" onclick="toggleTask(${task.id})">${task.running ? 'Pause' : 'Resume'}</button>
+                  <button onclick="deleteTask(${task.id})">Delete</button>
+                  <button onclick="stopAlarm()">Stop Alarm</button>
+                </div>
+            `;
+            
+            document.getElementById('taskList').appendChild(taskDiv);
+            
+            if (task.running && task.endTime > Date.now()) {
+                startTask(task.id, Math.floor((task.endTime - Date.now()) / 1000));
+            }
+        });
+    } catch (e) {
+        console.warn("Error restoring tasks:", e);
+    }
+}
+
+// Drag and Drop functionality
+function enableDragAndDrop() {
+    const taskList = document.getElementById('taskList');
+    taskList.addEventListener('dragstart', (e) => {
+        if (e.target.classList.contains('task')) {
+            e.target.classList.add('dragging');
+        }
+    });
+    taskList.addEventListener('dragend', (e) => {
+        if (e.target.classList.contains('task')) {
+            e.target.classList.remove('dragging');
+            saveTasks();
+        }
+    });
+    taskList.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const dragging = document.querySelector('.dragging');
+        const afterElement = getDragAfterElement(taskList, e.clientY);
+        if (afterElement == null) {
+            taskList.appendChild(dragging);
+        } else {
+            taskList.insertBefore(dragging, afterElement);
+        }
+    });
+}
+
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.task:not(.dragging)')];
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+// Niotron-specific functions
+function customFileSelect() {
+    if (typeof window.AppInventor !== "undefined") {
+        window.AppInventor.setWebViewString("select_file");
+    } else {
+        document.getElementById('music-file').click();
+    }
+}
+
+function vibrate(pattern) {
+    if (typeof window.AppInventor !== "undefined") {
+        window.AppInventor.setWebViewString("vibrate:" + pattern.join(','));
+    } else if (navigator.vibrate) {
+        navigator.vibrate(pattern);
+    }
+}
+
+function showTaskErrorPopup(msg) {
+    const popup = document.getElementById("task-error-popup");
+    popup.innerText = msg;
+    popup.classList.add("show");
+    setTimeout(() => {
+        popup.classList.remove("show");
+    }, 3000);
+}
+
+// Initialize
+updateTaskManagerButtonVisibility();
+</script>
+</body>
+</html>
